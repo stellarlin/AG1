@@ -154,8 +154,8 @@ struct BFS
 
         while (!hero_queue.empty())
         {
-           auto & [current_hero, current_beast, curr_path] = hero_queue.front();
-
+           auto  [current_hero, current_beast, curr_path] = hero_queue.front();
+           hero_queue.pop();
 
            // Check if the mouse has reached the goal
            if (current_hero == map.exit) return curr_path;
@@ -164,22 +164,28 @@ struct BFS
             std::vector<Direction> directions = {Direction::LEFT, Direction::RIGHT, Direction::UP, Direction::DOWN};
 
             for (const auto& direction : directions) {
+                // Move the hero in the current direction
                auto new_hero_pos = current_hero.move(direction);
                auto  new_hero = map[new_hero_pos];
 
+                // Move the beast in response to the hero's new position
                auto new_beast_pos = beast.move(map, new_hero_pos, current_beast);
                auto  new_beast = map[new_beast_pos];
 
-               Path new_path = curr_path;
-               new_path.push_back(new_hero_pos);
 
-            if(new_hero== Tile::EMPTY && new_beast == map[new_beast_pos]
+                // Check conditions: hero moves to an empty tile, beast doesn't catch the hero,
+                // and this state hasn't been visited yet
+            if(new_hero == Tile::EMPTY && new_beast != new_hero
             && hero_visited.find({new_hero_pos, new_beast_pos}) == hero_visited.end()) {
+                // Create a new path extending the current path
+                    Path new_path = curr_path;
+                    new_path.push_back(new_hero_pos);
+
                    hero_queue.push({new_hero_pos, new_beast_pos, new_path});
                    hero_visited.emplace(new_hero_pos, new_beast_pos);
                }}
 
-            hero_queue.pop();
+
         }
 
         return Path();
