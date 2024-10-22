@@ -37,8 +37,7 @@ struct Position {
     constexpr Position(size_t r, size_t c) : row(r), col(c) {}
 
     Position move(Direction d) const {
-        using
-        enum Direction;
+        using enum  Direction;
         switch (d) {
             case UP:
                 return {row - 1, col};
@@ -132,7 +131,6 @@ using Path = std::vector<Position>;
 
 struct BFS
 {
-
     struct Step
     {
         Step (const Position & h, const Position & b, Path  p) : hero(h), beast(b), path(std::move(p)){}
@@ -151,25 +149,26 @@ struct BFS
 
     template<typename Beast> Path apply (const Map &map, const Beast &beast)
     {
+        using enum  Direction;
 
         while (!hero_queue.empty())
         {
-           auto  [current_hero, current_beast, curr_path] = hero_queue.front();
+           auto  current_step  = hero_queue.front();
            hero_queue.pop();
 
            // Check if the mouse has reached the goal
-           if (current_hero == map.exit) return curr_path;
+           if (current_step.hero == map.exit) return current_step.path;
 
             // Define possible directions for movement
             std::vector<Direction> directions = {Direction::LEFT, Direction::RIGHT, Direction::UP, Direction::DOWN};
 
             for (const auto& direction : directions) {
                 // Move the hero in the current direction
-               auto new_hero_pos = current_hero.move(direction);
+               auto new_hero_pos = current_step.hero.move(direction);
                auto  new_hero = map[new_hero_pos];
 
                 // Move the beast in response to the hero's new position
-               auto new_beast_pos = beast.move(map, new_hero_pos, current_beast);
+               auto new_beast_pos = beast.move(map, new_hero_pos, current_step.beast);
                auto  new_beast = map[new_beast_pos];
 
 
@@ -178,14 +177,13 @@ struct BFS
             if(new_hero == Tile::EMPTY && new_beast != new_hero
             && hero_visited.find({new_hero_pos, new_beast_pos}) == hero_visited.end()) {
                 // Create a new path extending the current path
-                    Path new_path = curr_path;
+                    Path new_path = current_step.path;
                     new_path.push_back(new_hero_pos);
 
-                   hero_queue.push({new_hero_pos, new_beast_pos, new_path});
+                   hero_queue.push({new_hero_pos, new_beast_pos, std::move(new_path)});
                    hero_visited.emplace(new_hero_pos, new_beast_pos);
-               }}
-
-
+               }
+            }
         }
 
         return Path();
@@ -206,7 +204,7 @@ Path find_escape_route(const Map &map, const Beast &beast) {
 #ifndef __PROGTEST__
 
 
-// Sample beast which does two moves per one hero move and it might be
+// Sample beast which does two moves per one hero move, and it might be
 // allowed to step on traps
 struct SampleBeast {
     SampleBeast(bool can_step_on_trap) : can_step_on_trap(can_step_on_trap) {}
@@ -322,5 +320,3 @@ int main() {
 }
 
 #endif
-
-
