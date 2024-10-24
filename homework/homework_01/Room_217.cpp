@@ -133,19 +133,42 @@ struct BFS
 {
     struct Step
     {
-        Step (const Position & h, const Position & b, Path  p) : hero(h), beast(b), path(std::move(p)){}
+        Step (const Position & h, const Position & b) : hero(h), beast(b){}
         Position hero;
         Position beast;
-        Path  path;
+        friend constexpr auto operator<=>(const Step & first, const Step & second) = default;
+
     };
     std::queue<Step> hero_queue;
-    std::set <std::pair<Position, Position>> hero_visited;
+    std::set <Step> hero_visited;
+    std:: map <Step, Step> parent_steps;
+
+
 
     void init(const Map &map)
     {
 
-        hero_queue.push(Step(map.hero, map.beast, {map.hero}));
+        hero_queue.push(Step(map.hero, map.beast));
         hero_visited.emplace(map.hero, map.beast);
+
+    }
+
+    Path reconstruct_path(const Map &map, const Step & goal_state) const {
+
+        Path path;
+        auto current_step = goal_state;
+        while (parent_steps.contains(current_step)) {
+            path.push_back(current_step.hero); // Append the evader's position to the path
+            current_step = parent_steps.at(current_step); // Move to the parent state
+        }
+        path.push_back(current_step.hero); // Add the starting position (the last found state)
+        std::ranges::reverse(path);
+        return path;
+    }
+
+    inline bool valid_move (const Position & hero, const Position & beast, const Map &map) const {
+        return map[hero] == Tile::EMPTY && hero != beast
+            && !hero_visited.contains({hero, beast});
     }
 
     template<typename Beast> Path apply (const Map &map, const Beast &beast)
@@ -158,7 +181,8 @@ struct BFS
            hero_queue.pop();
 
            // Check if the mouse has reached the goal
-           if (current_step.hero == map.exit) return current_step.path;
+           if (current_step.hero == map.exit)
+               return reconstruct_path(map, {current_step.hero, current_step.beast });
 
             // Define possible directions for movement
             std::vector<Direction> directions = {Direction::LEFT, Direction::RIGHT, Direction::UP, Direction::DOWN};
@@ -173,14 +197,10 @@ struct BFS
 
                 // Check conditions: hero moves to an empty tile, beast doesn't catch the hero,
                 // and this state hasn't been visited yet
-            if(map[new_hero] == Tile::EMPTY && new_beast != new_hero
-            && !hero_visited.contains({new_hero, new_beast})) {
-                // Create a new path extending the current path
-                    Path new_path = current_step.path;
-                    new_path.push_back(new_hero);
-
-                   hero_queue.push({new_hero, new_beast, std::move(new_path)});
+            if(valid_move(new_hero, new_beast, map)) {
+                   hero_queue.push({new_hero, new_beast});
                    hero_visited.emplace(new_hero, new_beast);
+                   parent_steps.emplace(Step(new_hero, new_beast), current_step);
                }
             }
         }
@@ -295,6 +315,7 @@ const std::tuple<size_t, size_t, Map> TESTS[] = {
                      "                         W         \n"
                      "                         W H       \n"
                      "                                   "}},
+
 };
 
 template<typename Beast>
