@@ -147,11 +147,6 @@ private:
       return added;
     }
 
-    size_t countNodes(size_t count, bool from_left = true) {
-
-      return count;
-    }
-
     T m_data;
     pointer m_parent;
     pointer m_left;
