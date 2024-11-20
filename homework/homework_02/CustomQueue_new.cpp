@@ -73,13 +73,15 @@ struct Queue {
 
     pointer rotate_left () {
       auto new_root = m_right;
+      auto old_root = this->shared_from_this();
       new_root->m_parent = m_parent;
 
       //switch subtrees
       m_right = new_root->m_left;
+      if(m_right) m_right->m_parent = old_root;
 
       //connect x and y
-      new_root->m_left = this->shared_from_this();
+      new_root->m_left = old_root;
       m_parent = new_root;
 
       // Update heights and counts
@@ -91,15 +93,16 @@ struct Queue {
 
     pointer rotate_right () {
       auto new_root = m_left;
+      auto old_root = this->shared_from_this();
       new_root->m_parent = m_parent;
 
       //switch subtrees
       m_left = new_root->m_right;
+      if(m_left) m_left->m_parent = old_root;
 
       //connect x and y
       new_root->m_right = this->shared_from_this();
       m_parent = new_root;
-
 
 
       // Update heights and counts
@@ -125,6 +128,12 @@ struct Queue {
       return update();
     }
 
+    size_t countNodes(size_t count,bool from_left)
+    {
+      if (from_left) count += m_left_count + 1;
+      return (!m_parent) ?  count : m_parent->countNodes(count, m_parent->m_right == this->shared_from_this());
+    }
+
     T m_data;
     pointer m_parent;
     pointer m_left;
@@ -148,19 +157,18 @@ public:
   struct Ref {
 
     // Constructor that accepts a shared_ptr<Node<T>>
-    explicit Ref(pointer node) : m_ref(node) {}
+    explicit Ref(pointer node = nullptr) : m_id(node) {}
 
     // Copy constructor
-    Ref(const Ref& other) : m_ref(other.m_ref) {}
+    Ref(const Ref& other) : m_id(other.m_id) {}
 
     // Move constructor
-    Ref(Ref&& other) noexcept : m_ref(std::move(other.m_ref)) {
-      other.m_ref = nullptr;
+    Ref(Ref&& other) noexcept : m_id(std::move(other.m_id)) {
+      other.m_id = nullptr;
     }
-  private:    // check if ref is empty
-    bool empty() const {return m_ref == nullptr;}
-
-    pointer m_ref;
+  private:
+    pointer m_id; // Identifier managed by the Queue
+    friend class Queue; // Allows Queue to manage Ref instances
   };
 
   pointer findLast()
@@ -182,13 +190,18 @@ public:
     return Ref(added);
   }
 
+
+  size_t position(const Ref& it) const {
+    if (it.m_id == nullptr) return -1;
+    return it.m_id->countNodes(0, true) - 1;
+  }
+
+
+
 /*
   T pop_first(); // throw std::out_of_range if empty
 
-  size_t position(const Ref& it) const {
- //   if (it.empty()) return 0;
- //   return it.m_ref->countNodes(0, true);
-  }
+
 
   void jump_ahead(const Ref& it, size_t positions);
 */
@@ -198,7 +211,7 @@ public:
     if (node) {
       std::cout << indent;
       std::cout << (isLeft ? "L-- " : "R-- ");
-      std::cout << node->m_data << std::endl;
+      std::cout << node->m_data <<"," << (m_root == node ? 0 : node->m_parent->m_data) << std::endl;
 
       printNode(node->m_left, indent + (isLeft ? "|   " : "    "), true);
       printNode(node->m_right, indent + (isLeft ? "|   " : "    "), false);
@@ -214,17 +227,35 @@ public:
    printNode(m_root);
   }
 
-private:
+//private:
   pointer m_root;
   size_t m_size;
 };
 
 #ifndef __PROGTEST__
 
-int main() {
-Queue<int> q;
-  for(int i = 1; i < 10; i++)q.push_last(i);
+void test1() {
+  Queue<int> q;
+
+  for(int i = 1; i < 10; i++) {
+     Queue<int>::Ref p = q.push_last(i);
+    std::cout <<"Position:"<<q.position(p)<<std::endl;
+    q.print();
+  }
+}
+
+void test2() {
+  Queue<int> q;
+
+  for(int i = 1; i < 10; i++) {
+    Queue<int>::Ref p = q.push_last(i);
+  }
   q.print();
+
+  std::cout <<"Position: "<<q.m_root->m_right->m_right->m_left->m_data<<","<<q.position(Queue<int>::Ref(q.m_root->m_right->m_right->m_left))<<std::endl;
+}
+int main() {
+test2();
 }
 #endif
 
