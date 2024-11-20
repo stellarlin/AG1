@@ -58,7 +58,6 @@ struct Queue {
 
       if (balance < 2 && balance > -2) return this->shared_from_this();
       //rotation is needed
-      pointer new_node;
 
       //LEFT
       if (balance > 0) {
@@ -67,7 +66,7 @@ struct Queue {
       }
       //RIGHT
       if (m_left->get_balance() > 0) m_left = m_left->rotate_left();  //LEFT RIGHT
-        return rotate_right();
+      return rotate_right();
     }
 
 
@@ -87,7 +86,7 @@ struct Queue {
       updateHeightCount();
       new_root->updateHeightCount();
 
-      return new_root->m_right;
+      return new_root;
     }
 
     pointer rotate_right () {
@@ -109,24 +108,21 @@ struct Queue {
 
       return new_root;
     }
-    pointer createLeft(T data) {
-      m_left = std::make_shared<Node>(std::move(data), this->shared_from_this());
-      m_left_count++;
-      return m_left;
-    }
 
-    pointer createRight(T data) {
-      m_right = std::make_shared<Node>(std::move(data), this->shared_from_this());
-      m_right_count++;
-      return m_right;
-    }
 
-    pointer push (T data, bool is_right) {
-      //push new node
-      auto added = is_right ? createRight(std::move(data))
-        : createLeft(std::move(data));
 
-      return added;
+    pointer push (pointer node, size_t position) {
+
+      // Determine whether to insert in the left or right subtree
+      if (position <= m_left_count) {
+        m_left = m_left ? m_left->push(node, position) : node;
+        m_left->m_parent = this->shared_from_this();
+      } else {
+       m_right =  m_right? m_right->push(node, position) : node;
+       m_right->m_parent = this->shared_from_this();
+      }
+
+      return update();
     }
 
     T m_data;
@@ -180,21 +176,10 @@ public:
       ++m_size;
       return Ref(m_root);
     }
-    auto last = findLast();
-    last = last->push(std::move(x), true);
-
-    pointer current = last;
-    auto new_subtree = nullptr;
-    while (current) {
-      if (!current->m_parent) {
-        m_root = current->update();
-        break;
-      }
-      current = current->update();
-      ;
-    }
+    auto added = std::make_shared<Node>(std::move(x));
+     m_root = m_root->push(added, m_size);
     ++m_size;
-    return Ref(last);
+    return Ref(added);
   }
 
 /*
@@ -238,11 +223,7 @@ private:
 
 int main() {
 Queue<int> q;
-  q.push_last(1);
-  q.push_last(2);
-  q.push_last(3);
- // q.push_last(4);
- // q.push_last(5);
+  for(int i = 1; i < 10; i++)q.push_last(i);
   q.print();
 }
 #endif
