@@ -36,7 +36,7 @@ struct Queue {
     size_t height () const {return std::max(m_left_height, m_right_height) + 1;}
     size_t count () const {return m_left_count + m_right_count + 1;}
     int get_balance() const{return  m_right_height - m_left_height;}
-
+    size_t position(pointer root) const {return countNodes(0, root, true) - 1;}
 
     void updateHeightCount() {
       //UPDATE count
@@ -128,11 +128,56 @@ struct Queue {
       return update();
     }
 
-    size_t countNodes(size_t count,bool from_left)
+
+    std::pair<pointer,size_t> pop (size_t position) {
+      T deletedValue;
+
+      // Determine whether to insert in the left or right subtree
+      if (position <= m_left_count){
+        auto  [newLeft, value] = m_left->pop(position);
+        m_left = newLeft;
+        deletedValue = value;
+        m_left_count--;
+
+      } else if (position > m_left_count + 1) {
+       auto [newRight, value] =   m_right->pop( position);
+        m_right = newRight;
+        deletedValue = value;
+        m_right_count--;
+      }
+      else {
+        deletedValue = m_data;
+
+        if (!m_left && !m_right) {
+          return {nullptr, deletedValue};
+        }
+        if (!m_left) {
+          return {m_right, deletedValue};
+        }
+        if (!m_right) return {m_left, deletedValue};
+
+
+        //# Case: Two children
+        auto successor = m_right->findMin();
+        m_data = successor->m_data;
+        auto [newRight, _] = m_right->pop(successor->position(m_right) + 1);
+        m_right = newRight;
+        m_right_count--;
+      }
+
+
+      return {update(),deletedValue};
+    }
+
+    pointer findMin() {
+    return (!m_left) ? this->shared_from_this() : m_left->findMin();
+    }
+
+    size_t countNodes(size_t count,  pointer root, bool from_left) const
     {
       if (from_left) count += m_left_count + 1;
-      return (!m_parent) ?  count : m_parent->countNodes(count, m_parent->m_right == this->shared_from_this());
-    }
+      return (root == this->shared_from_this()) ?  count : m_parent->countNodes(count, root, m_parent->m_right == this->shared_from_this());
+   }
 
     T m_data;
     pointer m_parent;
@@ -193,25 +238,37 @@ public:
 
   size_t position(const Ref& it) const {
     if (it.m_id == nullptr) return -1;
-    return it.m_id->countNodes(0, true) - 1;
+    return it.m_id->position(m_root);
+  }
+
+
+  T pop_first() // throw std::out_of_range if empty
+  {
+    if (empty()) throw std::out_of_range("Empty queue");
+
+    auto[new_root, res] = m_root->pop(1);
+    m_root = new_root;
+    return res;
   }
 
 
 
-/*
-  T pop_first(); // throw std::out_of_range if empty
+  void jump_ahead(const Ref& it, size_t positions) {
 
+    auto old_pos = position(it)+1;;
+    auto[new_root, old_val]= m_root->pop(old_pos);
+    pointer new_node = std::make_shared<Node>(std::move(old_val));
+     m_root= new_root->push(new_node, (old_pos <= positions ? 1 : old_pos - positions));
 
+  }
 
-  void jump_ahead(const Ref& it, size_t positions);
-*/
 
   // Print tree in a structured format (for visualization)
   void printNode(pointer node, std::string indent = "", bool isLeft = true) const{
     if (node) {
       std::cout << indent;
       std::cout << (isLeft ? "L-- " : "R-- ");
-      std::cout << node->m_data <<"," << (m_root == node ? 0 : node->m_parent->m_data) << std::endl;
+      std::cout << node->m_data  << std::endl;
 
       printNode(node->m_left, indent + (isLeft ? "|   " : "    "), true);
       printNode(node->m_right, indent + (isLeft ? "|   " : "    "), false);
@@ -252,10 +309,41 @@ void test2() {
   }
   q.print();
 
-  std::cout <<"Position: "<<q.m_root->m_right->m_right->m_left->m_data<<","<<q.position(Queue<int>::Ref(q.m_root->m_right->m_right->m_left))<<std::endl;
+  std::cout <<"Position: "<<q.m_root->m_right->m_right->m_data<<","<<q.position(Queue<int>::Ref(q.m_root->m_right->m_right))<<std::endl;
+
+  auto first = q.m_root;
+  auto second =  q.m_root->m_right->m_right->m_right;
+
+  std::cout <<"Position: ("<<first->m_data << " " << second->m_data<<"):"<<second->countNodes(0, first, true)<<std::endl;
+  std::cout <<"Position: ("<<first->m_right->m_data << " " << second->m_data<<"):"<<second->countNodes(0, first->m_right, true)<<std::endl;
 }
+
+void test3() {
+  Queue<int> q;
+
+  for(int i = 1; i < 10; i++) {
+    Queue<int>::Ref p = q.push_last(i);
+  }
+ while (!q.empty())
+ {
+    std::cout << "Value deleted:" << q.pop_first()<<std::endl;
+   q.print();
+ }
+}
+
+void test4() {
+  Queue<int> q;
+
+  for(int i = 1; i < 10; i++) {
+    Queue<int>::Ref p = q.push_last(i);
+  }
+  Queue<int>::Ref p (q.m_root);
+  q.jump_ahead(p,2);
+  q.print();
+}
+
 int main() {
-test2();
+test4();
 }
 #endif
 
